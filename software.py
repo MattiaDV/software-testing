@@ -11,6 +11,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 # Configura il driver
 def configure_driver():
+    print("Configurazione del driver...")
     options = Options()
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--no-sandbox")
@@ -25,6 +26,7 @@ def configure_driver():
 # Funzione per accettare i cookie
 def accept_cookies(driver):
     try:
+        print("Tentativo di accettare i cookie...")
         cookie_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button#onetrust-accept-btn-handler'))
         )
@@ -36,7 +38,7 @@ def accept_cookies(driver):
 # Funzione per raccogliere i link delle esperienze
 def collect_experience_links(driver):
     try:
-        # Aspetta che le card siano visibili e raccogli i link
+        print("Raccolta dei link delle esperienze...")
         cards = WebDriverWait(driver, 20).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div.vertical-activity-card__content-wrapper'))
         )
@@ -50,6 +52,7 @@ def collect_experience_links(driver):
 # Funzione per raccogliere il link del fornitore
 def find_supplier_link(driver):
     try:
+        print("Cercando il link del fornitore...")
         supplier_selector = [
             'a.supplier-name__link.adp__link',
             'a[href*="supplier"]',
@@ -78,6 +81,7 @@ def collect_supplier_info(driver):
         'info': ''
     }
     try:
+        print("Raccolta delle informazioni aziendali...")
         try:
             titolo_element = driver.find_element(By.CSS_SELECTOR, 'h1.supplier__header-title')
             dati['titolo'] = titolo_element.text.strip()
@@ -114,12 +118,13 @@ def write_data_to_csv(nazione, dati):
         writer.writerow([f"Info: {dati.get('info', 'Non disponibile')}"])
         writer.writerow([])
 
-# Modifica principale nel loop per raccogliere Titolo + Info
+# Codice principale
 driver = configure_driver()
 
 try:
     # Apri la pagina principale
     url = "https://www.getyourguide.com/"
+    print("Navigando alla pagina principale...")
     driver.get(url)
     time.sleep(random.uniform(2, 4))  # Attendi caricamento
     accept_cookies(driver)
@@ -130,6 +135,7 @@ try:
     # Per ogni nazione, cerca i dati
     for nazione in nazioni:
         try:
+            print(f"Ricerca per {nazione}...")
             # Ricerca la nazione
             search_box = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'input.c-input__field'))
