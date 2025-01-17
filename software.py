@@ -4,18 +4,22 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import undetected_chromedriver as uc
-import csv
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
+import csv
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Configura il driver
 def configure_driver():
-    options = uc.ChromeOptions()
-    options.add_argument("--disable-blink-features=AutomationControlled")  # Nascondi automazione
+    options = Options()
+    options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-gpu")
-    options.add_argument("--remote-debugging-port=9222")  # Opzionale: usa una porta diversa per il debug remoto
+    options.add_argument("--remote-debugging-port=9222")
     options.add_argument("--disable-dev-shm-usage")
-    driver = uc.Chrome(options=options)
+
+    # Usa undetected_chromedriver con gestione automatica della versione
+    driver = uc.Chrome(options=options, driver_executable_path=ChromeDriverManager().install())
     return driver
 
 # Funzione per accettare i cookie
@@ -26,13 +30,13 @@ def accept_cookies(driver):
         )
         cookie_button.click()
         print("Cookie accettati.")
-    except:
-        print("Nessun banner dei cookie trovato.")
+    except Exception as e:
+        print(f"Nessun banner dei cookie trovato o errore: {e}")
 
 # Funzione per raccogliere i link delle esperienze
 def collect_experience_links(driver):
     try:
-        # Trova le card delle esperienze
+        # Aspetta che le card siano visibili e raccogli i link
         cards = WebDriverWait(driver, 20).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div.vertical-activity-card__content-wrapper'))
         )
@@ -43,13 +47,12 @@ def collect_experience_links(driver):
         print(f"Errore nel trovare le card: {e}")
         return []
 
-# Funzione per raccogliere le informazioni legali (ragione sociale, indirizzo e partita IVA)
-# tore
+# Funzione per raccogliere il link del fornitore
 def find_supplier_link(driver):
     try:
         supplier_selector = [
-            'a.supplier-name__link.adp__link',  # Selettore originale
-            'a[href*="supplier"]',             # Alternativo basato su href
+            'a.supplier-name__link.adp__link',
+            'a[href*="supplier"]',
         ]
         supplier_link = None
         for selector in supplier_selector:
@@ -60,33 +63,31 @@ def find_supplier_link(driver):
                 supplier_link = supplier_element.get_attribute('href')
                 if supplier_link:
                     break
-            except:
-                pass
+            except Exception as e:
+                print(f"Errore nel cercare il link del fornitore: {e}")
 
         return supplier_link
     except Exception as e:
         print(f"Errore nel trovare il link del fornitore: {e}")
         return None
 
-# Funzione per raccogliere il titolo e i dettagli
+# Funzione per raccogliere informazioni aggiuntive
 def collect_supplier_info(driver):
     dati = {
-        'titolo': 'Non disponibile',  # Campo per il titolo
-        'info': ''                    # Campo unico per i dettagli concatenati
+        'titolo': 'Non disponibile',
+        'info': ''
     }
     try:
-        # Trova il titolo nella pagina del fornitore
         try:
             titolo_element = driver.find_element(By.CSS_SELECTOR, 'h1.supplier__header-title')
             dati['titolo'] = titolo_element.text.strip()
         except:
             print("Titolo non trovato.")
         
-        # Trova i dettagli generici (elementi <li>)
         try:
             legal_items = driver.find_elements(By.CSS_SELECTOR, 'ul.legal-notice__items > li')
             dettagli = [item.text.strip() for item in legal_items if item.text.strip()]
-            dati['info'] = ' | '.join(dettagli)  # Concatena i dettagli separati da '|'
+            dati['info'] = ' | '.join(dettagli)
         except Exception as e:
             print(f"Errore nel raccogliere i dettagli: {e}")
     
@@ -95,7 +96,7 @@ def collect_supplier_info(driver):
     
     return dati
 
-# Scrivere i dati nel file CSV (Titolo + Info)
+# Scrivere i dati nel file CSV
 def write_data_to_csv(nazione, dati):
     try:
         with open('provider_data.csv', 'r', encoding='utf-8') as file:
@@ -109,10 +110,9 @@ def write_data_to_csv(nazione, dati):
             writer.writerow([f"Nazione: {nazione}"])
             writer.writerow([])
 
-        # Scrive il titolo e le info in un'unica riga
         writer.writerow([f"Titolo: {dati.get('titolo', 'Non disponibile')}"])
         writer.writerow([f"Info: {dati.get('info', 'Non disponibile')}"])
-        writer.writerow([])  # Linea vuota per separare i provider
+        writer.writerow([])
 
 # Modifica principale nel loop per raccogliere Titolo + Info
 driver = configure_driver()
@@ -134,13 +134,13 @@ try:
             search_box = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'input.c-input__field'))
             )
-            search_box.clear()  # Pulisce la barra di ricerca
-            search_box.send_keys(nazione)  # Inserisci il nome della nazione
-            search_box.send_keys(Keys.RETURN)  # Premere INVIO per avviare la ricerca
+            search_box.clear()
+            search_box.send_keys(nazione)
+            search_box.send_keys(Keys.RETURN)
 
-            time.sleep(3)  # Attendere che la pagina si carichi
+            time.sleep(3)
 
-            # Raccogli i link delle esperienze per la nazione
+            # Raccogli i link delle esperienze
             links = collect_experience_links(driver)
 
             # Visita ogni link delle esperienze
